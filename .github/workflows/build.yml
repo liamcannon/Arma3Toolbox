@@ -4,10 +4,6 @@ on:
   pull_request:
   workflow_dispatch:
 
-env:
-  BLENDER_VERSION: "4.2.3"
-  BLENDER_SHORT_VERSION: "4.2"
-
 jobs:
   lint:
     name: Lint (flake8)
@@ -50,8 +46,16 @@ jobs:
         run: mypy Arma3ObjectBuilder --ignore-missing-imports
 
   test:
-    name: Test (Blender)
+    name: Test (Blender ${{ matrix.blender_version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - blender_version: "4.5.13"
+            blender_short_version: "4.5"
+          - blender_version: "5.2.1"
+            blender_short_version: "5.2"
     steps:
       - uses: actions/checkout@v4
 
@@ -59,17 +63,17 @@ jobs:
         id: cache-blender
         uses: actions/cache@v4
         with:
-          path: blender-${{ env.BLENDER_VERSION }}-linux-x64
-          key: blender-${{ env.BLENDER_VERSION }}-linux-x64
+          path: blender-${{ matrix.blender_version }}-linux-x64
+          key: blender-${{ matrix.blender_version }}-linux-x64
 
       - name: Download Blender
         if: steps.cache-blender.outputs.cache-hit != 'true'
         run: |
-          curl -L -o blender.tar.xz "https://download.blender.org/release/Blender${{ env.BLENDER_SHORT_VERSION }}/blender-${{ env.BLENDER_VERSION }}-linux-x64.tar.xz"
+          curl -L -o blender.tar.xz "https://download.blender.org/release/Blender${{ matrix.blender_short_version }}/blender-${{ matrix.blender_version }}-linux-x64.tar.xz"
           tar -xf blender.tar.xz
 
       - name: Add Blender to PATH
-        run: echo "$GITHUB_WORKSPACE/blender-${{ env.BLENDER_VERSION }}-linux-x64" >> "$GITHUB_PATH"
+        run: echo "$GITHUB_WORKSPACE/blender-${{ matrix.blender_version }}-linux-x64" >> "$GITHUB_PATH"
 
       - name: Build add-on package
         run: blender --command extension build --source-dir Arma3ObjectBuilder --output-filepath "${{ github.workspace }}/a3ob.zip"
@@ -88,5 +92,5 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: test-outputs
+          name: test-outputs-${{ matrix.blender_version }}
           path: tests/outputs/
