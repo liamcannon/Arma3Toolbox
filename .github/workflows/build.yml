@@ -103,7 +103,8 @@ jobs:
 
       - name: Install add-on
         run: |
-          blender -b --python-expr "import bpy; bpy.ops.extensions.package_install_files(filepath='${{ github.workspace }}/a3ob.zip', repo='user_default', enable_on_install=True); bpy.ops.wm.save_userpref()"
+          ws="${GITHUB_WORKSPACE//\\//}"
+          blender -b --python-expr "import bpy; bpy.ops.extensions.package_install_files(filepath='$ws/a3ob.zip', repo='user_default', enable_on_install=True); bpy.ops.wm.save_userpref()"
 
       - name: Run model.cfg tests
         run: blender -b -noaudio --python tests/mcfg.py
