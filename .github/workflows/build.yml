@@ -72,16 +72,19 @@ jobs:
       - name: Add Blender to PATH
         run: echo "$GITHUB_WORKSPACE/blender-${{ env.BLENDER_VERSION }}-linux-x64" >> "$GITHUB_PATH"
 
+      - name: Build add-on package
+        run: blender --command extension build --source-dir Arma3ObjectBuilder --output-filepath "${{ github.workspace }}/a3ob.zip"
+
       - name: Install add-on
         run: |
-          blender -b --python-expr "import bpy; bpy.ops.extensions.package_install_files(filepath='${{ github.workspace }}/Arma3ObjectBuilder', repo='user_default', enable_on_install=True)"
-    
-      - parallel:
-        - name: Run model.cfg tests
-          run: blender -b -noaudio --python tests/mcfg.py
-        - name: Run P3D tests
-          run: blender -b -noaudio --python tests/p3d.py
-          
+          blender -b --python-expr "import bpy; bpy.ops.extensions.package_install_files(filepath='${{ github.workspace }}/a3ob.zip', repo='user_default', enable_on_install=True)"
+
+      - name: Run model.cfg tests
+        run: blender -b -noaudio --python tests/mcfg.py
+
+      - name: Run P3D tests
+        run: blender -b -noaudio --python tests/p3d.py
+
       - name: Upload test outputs
         if: failure()
         uses: actions/upload-artifact@v4
