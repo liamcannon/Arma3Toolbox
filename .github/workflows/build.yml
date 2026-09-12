@@ -89,7 +89,11 @@ jobs:
         if: steps.cache-blender.outputs.cache-hit != 'true'
         run: |
           curl -L -o blender.${{ matrix.archive_ext }} "https://download.blender.org/release/Blender${{ matrix.blender_short_version }}/blender-${{ matrix.blender_version }}-${{ matrix.platform }}.${{ matrix.archive_ext }}"
-          tar -xf blender.${{ matrix.archive_ext }}
+          if [ "${{ matrix.archive_ext }}" = "zip" ]; then
+            unzip -q blender.zip
+          else
+            tar -xf blender.${{ matrix.archive_ext }}
+          fi
 
       - name: Add Blender to PATH
         run: echo "$GITHUB_WORKSPACE/blender-${{ matrix.blender_version }}-${{ matrix.platform }}" >> "$GITHUB_PATH"
