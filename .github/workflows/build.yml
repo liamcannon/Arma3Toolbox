@@ -46,15 +46,34 @@ jobs:
         run: mypy Arma3ObjectBuilder --ignore-missing-imports
 
   test:
-    name: Test (Blender ${{ matrix.blender_version }})
-    runs-on: ubuntu-latest
+    name: Test (Blender ${{ matrix.blender_version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
         include:
-          - blender_version: "4.5.13"
+          - os: ubuntu-latest
+            platform: linux-x64
+            archive_ext: tar.xz
+            blender_version: "4.5.13"
             blender_short_version: "4.5"
-          - blender_version: "5.2.1"
+          - os: ubuntu-latest
+            platform: linux-x64
+            archive_ext: tar.xz
+            blender_version: "5.2.1"
+            blender_short_version: "5.2"
+          - os: windows-latest
+            platform: windows-x64
+            archive_ext: zip
+            blender_version: "4.5.13"
+            blender_short_version: "4.5"
+          - os: windows-latest
+            platform: windows-x64
+            archive_ext: zip
+            blender_version: "5.2.1"
             blender_short_version: "5.2"
     steps:
       - uses: actions/checkout@v4
@@ -63,17 +82,17 @@ jobs:
         id: cache-blender
         uses: actions/cache@v4
         with:
-          path: blender-${{ matrix.blender_version }}-linux-x64
-          key: blender-${{ matrix.blender_version }}-linux-x64
+          path: blender-${{ matrix.blender_version }}-${{ matrix.platform }}
+          key: blender-${{ matrix.blender_version }}-${{ matrix.platform }}
 
       - name: Download Blender
         if: steps.cache-blender.outputs.cache-hit != 'true'
         run: |
-          curl -L -o blender.tar.xz "https://download.blender.org/release/Blender${{ matrix.blender_short_version }}/blender-${{ matrix.blender_version }}-linux-x64.tar.xz"
-          tar -xf blender.tar.xz
+          curl -L -o blender.${{ matrix.archive_ext }} "https://download.blender.org/release/Blender${{ matrix.blender_short_version }}/blender-${{ matrix.blender_version }}-${{ matrix.platform }}.${{ matrix.archive_ext }}"
+          tar -xf blender.${{ matrix.archive_ext }}
 
       - name: Add Blender to PATH
-        run: echo "$GITHUB_WORKSPACE/blender-${{ matrix.blender_version }}-linux-x64" >> "$GITHUB_PATH"
+        run: echo "$GITHUB_WORKSPACE/blender-${{ matrix.blender_version }}-${{ matrix.platform }}" >> "$GITHUB_PATH"
 
       - name: Build add-on package
         run: blender --command extension build --source-dir Arma3ObjectBuilder --output-filepath "${{ github.workspace }}/a3ob.zip"
@@ -92,5 +111,5 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: test-outputs-${{ matrix.blender_version }}
+          name: test-outputs-${{ matrix.blender_version }}-${{ matrix.os }}
           path: tests/outputs/
