@@ -1,0 +1,90 @@
+name: Build & Test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  BLENDER_VERSION: "4.2.3"
+  BLENDER_SHORT_VERSION: "4.2"
+
+jobs:
+  lint:
+    name: Lint (flake8)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install flake8
+        run: pip install flake8
+
+      # PEP8 enforcement is not fully rolled out yet (see issue #100), so lint
+      # failures are reported but do not fail the build for now.
+      - name: Run flake8
+        continue-on-error: true
+        run: flake8 Arma3ObjectBuilder --count --statistics
+
+  typecheck:
+    name: Type check (mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install mypy
+          pip install -r requirements.txt
+
+      # Full typing coverage is still in progress (see issue #95), so type
+      # errors are reported but do not fail the build for now.
+      - name: Run mypy
+        continue-on-error: true
+        run: mypy Arma3ObjectBuilder --ignore-missing-imports
+
+  test:
+    name: Test (Blender)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Blender
+        id: cache-blender
+        uses: actions/cache@v4
+        with:
+          path: blender-${{ env.BLENDER_VERSION }}-linux-x64
+          key: blender-${{ env.BLENDER_VERSION }}-linux-x64
+
+      - name: Download Blender
+        if: steps.cache-blender.outputs.cache-hit != 'true'
+        run: |
+          curl -L -o blender.tar.xz "https://download.blender.org/release/Blender${{ env.BLENDER_SHORT_VERSION }}/blender-${{ env.BLENDER_VERSION }}-linux-x64.tar.xz"
+          tar -xf blender.tar.xz
+
+      - name: Add Blender to PATH
+        run: echo "$GITHUB_WORKSPACE/blender-${{ env.BLENDER_VERSION }}-linux-x64" >> "$GITHUB_PATH"
+
+      - name: Install add-on
+        run: |
+          blender -b --python-expr "import bpy; bpy.ops.extensions.package_install_files(filepath='${{ github.workspace }}/Arma3ObjectBuilder', repo='user_default', enable_on_install=True)"
+    
+      - parallel:
+        - name: Run model.cfg tests
+          run: blender -b -noaudio --python tests/mcfg.py
+        - name: Run P3D tests
+          run: blender -b -noaudio --python tests/p3d.py
+          
+      - name: Upload test outputs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-outputs
+          path: tests/outputs/
